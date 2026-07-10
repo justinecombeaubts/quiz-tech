@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Tech & Outils Google</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(135deg, rgb(26, 10, 10), rgb(45, 27, 14), rgb(31, 15, 26));
+        }
+        .heading-font {
+            font-family: 'Fraunces', serif;
+        }
+        .quiz-option {
+            transition: all 0.25s ease;
+        }
+        .quiz-option:hover:not(.disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(251, 146, 60, 0.3);
+        }
+        .quiz-option.correct {
+            background: #10b981 !important;
+            color: #fff !important;
+            transform: scale(1.03);
+            border-color: #10b981 !important;
+        }
+        .quiz-option.wrong {
+            background: #ef4444 !important;
+            color: #fff !important;
+            opacity: 0.7;
+            border-color: #ef4444 !important;
+        }
+        .quiz-option.disabled {
+            pointer-events: none;
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .slide-up {
+            animation: slideUp 0.5s ease forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .timer-ring {
+            transition: stroke-dashoffset 1s linear;
+        }
+        .streak-pulse {
+            animation: pulse 0.6s ease;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+        .progress-fill {
+            transition: width 0.5s ease;
+        }
+        .breakdown-item {
+            animation: fadeIn 0.3s ease forwards;
+            opacity: 0;
+        }
+        .category-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(251, 146, 60, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-4xl relative">
+        <!-- Home Screen -->
+        <div id="home-screen" class="text-center fade-in">
+            <h1 class="heading-font text-4xl font-bold text-white mb-4">Quiz Tech & Outils Google</h1>
+            <p class="text-white/80 mb-8 max-w-md mx-auto">
+                Testez vos connaissances sur l'IA, les outils Google et bien plus !
+            </p>
+            <div id="categories" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
+            <button 
+                onclick="window.location.href='https://poulinox.netlify.app'" 
+                class="px-6 py-3 rounded-full font-bold text-lg cursor-pointer shadow-lg hover:shadow-xl transition-shadow"
+                style="background: linear-gradient(90deg, rgb(249, 115, 22), rgb(236, 72, 153)); color: rgb(255, 255, 255);"
+            >
+                Retour au site principal
+            </button>
+        </div>
+
+        <!-- Presentation Screen -->
+        <div id="presentation-screen" class="hidden text-center fade-in">
+            <h2 id="presentation-title" class="heading-font text-3xl font-bold text-white mb-4"></h2>
+            <p id="presentation-description" class="text-white/80 mb-6 max-w-md mx-auto"></p>
+            <img id="presentation-image" class="w-full h-48 object-cover rounded-2xl mb-6 shadow-xl" alt="Presentation image">
+            <button 
+                onclick="startQuiz()" 
+                class="px-10 py-4 rounded-full font-bold text-lg cursor-pointer shadow-lg hover:shadow-xl transition-shadow"
+                style="background: linear-gradient(90deg, rgb(249, 115, 22), rgb(236, 72, 153)); color: rgb(255, 255, 255);"
+            >
+                Commencer le quiz 🚀
+            </button>
+            <button 
+                onclick="backToHome()" 
+                class="mt-4 px-6 py-2 rounded-full font-medium cursor-pointer text-white/70 hover:text-white transition-colors"
+            >
+                Retour aux catégories
+            </button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden">
+            <div class="flex items-center justify-between mb-5">
+                <span id="q-counter" class="text-sm font-bold text-orange-200 bg-white/10 px-3 py-1 rounded-full">1 / 10</span>
+                <div class="flex items-center gap-3">
+                    <div id="streak-display" class="flex items-center gap-1 text-amber-300 font-bold text-sm opacity-0 transition-opacity">
+                        <i data-lucide="zap" style="width:16px;height:16px;"></i> 
+                        <span id="streak-count">0</span>
+                    </div>
+                    <div class="relative w-10 h-10">
+                        <svg class="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3"></circle>
+                            <circle id="timer-circle" cx="18" cy="18" r="15" fill="none" stroke="url(#timer-grad)" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="0" class="timer-ring"></circle>
+                            <defs>
+                                <linearGradient id="timer-grad">
+                                    <stop offset="0%" stop-color="#fb923c"></stop>
+                                    <stop offset="100%" stop-color="#f472b6"></stop>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <span id="timer-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">15</span>
+                    </div>
+                </div>
+            </div>
+            <div class="h-1.5 rounded-full bg-white/10 overflow-hidden mb-5">
+                <div id="progress-bar" class="progress-fill h-full rounded-full bg-gradient-to-r from-orange-400 via-pink-400 to-rose-400" style="width:10%"></div>
+            </div>
+            <div id="question-area" class="bg-white/5 backdrop-blur-md rounded-3xl p-7 border border-white/10 shadow-xl fade-in">
+                <h2 id="q-text" class="text-xl font-bold text-white mb-7 leading-relaxed"></h2>
+                <div id="options" class="grid grid-cols-1 gap-3"></div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden text-center">
+            <div class="text-6xl mb-3" id="result-emoji">🏆</div>
+            <h2 class="heading-font text-3xl font-bold text-white mb-2">Résultat final</h2>
+            <p id="result-score" class="text-3xl font-bold text-orange-200 mb-2"></p>
+            <p id="result-streak" class="text-sm text-pink-300 mb-6"></p>
+            <div id="breakdown" class="text-left bg-white/5 rounded-2xl p-5 border border-white/10 mb-6 max-h-60 overflow-y-auto space-y-2"></div>
+            <button 
+                onclick="resetQuiz()" 
+                class="px-10 py-4 rounded-full font-bold text-lg cursor-pointer shadow-lg hover:shadow-xl transition-shadow"
+                style="background: linear-gradient(90deg, rgb(249, 115, 22), rgb(236, 72, 153)); color: rgb(255, 255, 255);"
+            >
+                Rejouer ↺
+            </button>
+            <button 
+                onclick="backToHome()" 
+                class="mt-4 px-6 py-2 rounded-full font-medium cursor-pointer text-white/70 hover:text-white transition-colors"
+            >
+                Retour aux catégories
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ========== DATA ==========
+        const categories = [
+            {
+                id: "ia",
+                name: "Intelligence Artificielle",
+                description: "Testez vos connaissances sur les modèles d'IA, les techniques et les applications modernes.",
+                image: "https://images.pexels.com/photos/7792817/pexels-photo-7792817.jpeg?auto=compress&cs=tinysrgb&w=1280",
+                questions: [
+                    { q: "Quel modèle d'IA de Google est capable de générer du texte, des images et du code ?", opts: ["Gemini", "Bard", "LaMDA", "PaLM"], ans: 0 },
+                    { q: "Quelle technique d'IA s'inspire du cerveau humain ?", opts: ["Arbres de décision", "Réseaux de neurones", "Régression linéaire", "K-means"], ans: 1 },
+                    { q: "Que signifie 'GPU' ?", opts: ["General Purpose Unit", "Graphics Processing Unit", "Global Power Utility", "Graphic Pixel Unit"], ans: 1 },
+                    { q: "Quel langage est le plus utilisé en IA et machine learning ?", opts: ["Java", "C++", "Python", "Ruby"], ans: 2 },
+                    { q: "Qu'est-ce qu'un 'prompt' en IA générative ?", opts: ["Un bug", "Une instruction donnée au modèle", "Un type de fichier", "Un langage"], ans: 1 },
+                    { q: "Quel est le modèle d'IA d'OpenAI connu pour générer du texte ?", opts: ["BERT", "GPT", "T5", "ELMo"], ans: 1 },
+                    { q: "Quelle entreprise a développé le modèle Stable Diffusion ?", opts: ["Google", "Stability AI", "Microsoft", "Meta"], ans: 1 },
+                    { q: "Quel est l'objectif principal de l'apprentissage supervisé ?", opts: ["Trouver des motifs cachés", "Prédire une sortie à partir d'entrées", "Réduire la dimensionnalité", "Grouper des données"], ans: 1 },
+                    { q: "Quel outil permet de créer des chatbots avec de l'IA sans coder ?", opts: ["TensorFlow", "Dialogflow", "PyTorch", "Keras"], ans: 1 },
+                    { q: "Quelle est la différence entre l'IA faible et l'IA forte ?", opts: ["L'IA faible est plus rapide", "L'IA forte a une conscience", "L'IA faible est spécialisée", "L'IA forte est moins précise"], ans: 2 }
+                ]
+            },
+            {
+                id: "outils-google",
+                name: "Outils Google",
+                description: "Découvrez les outils collaboratifs de Google et leurs fonctionnalités.",
+                image: "https://images.pexels.com/photos/4144223/pexels-photo-4144223.jpeg?auto=compress&cs=tinysrgb&w=1280",
+                questions: [
+                    { q: "Quel outil Google permet de collaborer en temps réel sur des documents ?", opts: ["Google Docs", "Google Keep", "Google Sites", "Google Chat"], ans: 0 },
+                    { q: "Google Maps utilise l'IA pour :", opts: ["Prédire le trafic", "Changer les couleurs", "Créer des routes", "Supprimer des villes"], ans: 0 },
+                    { q: "Google Sheets est l'équivalent Google de :", opts: ["Word", "PowerPoint", "Excel", "Access"], ans: 2 },
+                    { q: "Quel outil Google permet de créer des présentations ?", opts: ["Google Docs", "Google Slides", "Google Forms", "Google Draw"], ans: 1 },
+                    { q: "Google Drive est principalement utilisé pour :", opts: ["Créer des sites web", "Stocker et partager des fichiers", "Envoyer des emails", "Faire des appels vidéo"], ans: 1 },
+                    { q: "Quel outil Google permet de prendre des notes rapidement ?", opts: ["Google Docs", "Google Keep", "Google Tasks", "Google Calendar"], ans: 1 },
+                    { q: "Google Meet est un outil pour :", opts: ["Créer des formulaires", "Organiser des réunions vidéo", "Gérer des projets", "Analyser des données"], ans: 1 },
+                    { q: "Quel outil Google permet de créer des formulaires en ligne ?", opts: ["Google Docs", "Google Sheets", "Google Forms", "Google Sites"], ans: 2 },
+                    { q: "Google Calendar est utilisé pour :", opts: ["Éditer des images", "Gérer des événements et rappels", "Créer des bases de données", "Faire des calculs"], ans: 1 },
+                    { q: "Quel outil Google permet de créer un site web simplement ?", opts: ["Google Docs", "Google Sites", "Google Slides", "Google Keep"], ans: 1 }
+                ]
+            },
+            {
+                id: "google-docs",
+                name: "Google Docs",
+                description: "Apprenez à maîtriser Google Docs, l'outil de traitement de texte collaboratif de Google.",
+                image: "https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=1280",
+                questions: [
+                    { q: "Comment partager un Google Docs avec quelqu'un ?", opts: ["En lui envoyant un email", "En cliquant sur 'Partager' et en ajoutant son email", "En exportant le fichier", "En le publiant sur les réseaux sociaux"], ans: 1 },
+                    { q: "Quelle est la fonctionnalité qui permet de voir les modifications en temps réel ?", opts: ["Mode hors ligne", "Historique des versions", "Collaboration en temps réel", "Mode lecture"], ans: 2 },
+                    { q: "Comment ajouter un commentaire dans Google Docs ?", opts: ["En surlignant le texte et en cliquant sur 'Commenter'", "En appuyant sur Ctrl+C", "En changeant la couleur du texte", "En insérant une image"], ans: 0 },
+                    { q: "Quelle extension permet d'ajouter des fonctionnalités supplémentaires à Google Docs ?", opts: ["Add-ons", "Plugins", "Extensions", "Modules"], ans: 0 },
+                    { q: "Comment insérer une table dans Google Docs ?", opts: ["Via le menu 'Insertion' > 'Table'", "En copiant depuis Excel", "En utilisant un raccourci clavier", "En important depuis un PDF"], ans: 0 },
+                    { q: "Comment exporter un Google Docs en PDF ?", opts: ["Fichier > Télécharger > PDF", "Fichier > Imprimer > PDF", "Fichier > Exporter > PDF", "Fichier > Partager > PDF"], ans: 0 },
+                    { q: "Quelle est la fonctionnalité qui permet de voir qui a modifié le document ?", opts: ["Historique des versions", "Mode suggestion", "Mode lecture", "Partage avancé"], ans: 0 },
+                    { q: "Comment insérer une image dans Google Docs ?", opts: ["Insertion > Image", "Fichier > Importer", "Édition > Coller", "Affichage > Insérer"], ans: 0 },
+                    { q: "Comment changer la police par défaut dans Google Docs ?", opts: ["Via le menu 'Format' > 'Police'", "En modifiant le style du paragraphe", "En utilisant un add-on", "En changeant les paramètres du document"], ans: 0 },
+                    { q: "Comment utiliser la reconnaissance vocale dans Google Docs ?", opts: ["Outils > Saisie vocale", "Édition > Dictée", "Fichier > Voice", "Insertion > Audio"], ans: 0 }
+                ]
+            },
+            {
+                id: "google-sheets",
+                name: "Google Sheets",
+                description: "Maîtrisez les fonctionnalités avancées de Google Sheets pour l'analyse de données.",
+                image: "https://images.pexels.com/photos/6476587/pexels-photo-6476587.jpeg?auto=compress&cs=tinysrgb&w=1280",
+                questions: [
+                    { q: "Quelle formule permet de faire la somme de cellules dans Google Sheets ?", opts: ["=SUM()", "=ADD()", "=TOTAL()", "=PLUS()"], ans: 0 },
+                    { q: "Comment créer un graphique dans Google Sheets ?", opts: ["Sélectionner les données > Insérer > Graphique", "Fichier > Nouveau graphique", "Édition > Graphique", "Affichage > Graphique"], ans: 0 },
+                    { q: "Quelle formule permet de compter le nombre de cellules non vides ?", opts: ["=COUNT()", "=COUNTA()", "=NUM()", "=TOTAL()"], ans: 1 },
+                    { q: "Comment figurer les données dans Google Sheets ?", opts: ["En utilisant des filtres", "En triant les colonnes", "En utilisant la mise en forme conditionnelle", "Toutes ces réponses"], ans: 3 },
+                    { q: "Quelle formule permet de faire une recherche verticale ?", opts: ["=LOOKUP()", "=VLOOKUP()", "=SEARCH()", "=FIND()"], ans: 1 },
+                    { q: "Comment protéger une feuille dans Google Sheets ?", opts: ["Données > Feuilles protégées", "Fichier > Protéger", "Édition > Verrouiller", "Outils > Protéger"], ans: 0 },
+                    { q: "Quelle formule permet de concaténer du texte ?", opts: ["=CONCAT()", "=JOIN()", "=MERGE()", "=COMBINE()"], ans: 0 },
+                    { q: "Comment importer des données depuis un CSV dans Google Sheets ?", opts: ["Fichier > Importer", "Fichier > Ouvrir", "Édition > Importer", "Données > Importer"], ans: 0 },
+                    { q: "Quelle formule permet de calculer la moyenne ?", opts: ["=MEAN()", "=AVERAGE()", "=MEDIAN()", "=MID()"], ans: 1 },
+                    { q: "Comment utiliser des macros dans Google Sheets ?", opts: ["Outils > Macros", "Édition > Macros", "Fichier > Macros", "Données > Macros"], ans: 0 }
+                ]
+            },
+            {
+                id: "google-slides",
+                name: "Google Slides",
+                description: "Créez des présentations professionnelles avec Google Slides.",
+                image: "https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1280",
+                questions: [
+                    { q: "Comment insérer une nouvelle diapositive dans Google Slides ?", opts: ["Diapositive > Nouvelle diapositive", "Fichier > Nouvelle diapositive", "Édition > Ajouter", "Insertion > Diapositive"], ans: 0 },
+                    { q: "Quelle est la fonctionnalité qui permet de collaborer en temps réel sur une présentation ?", opts: ["Mode présentation", "Mode édition", "Partage en temps réel", "Mode lecture"], ans: 2 },
+                    { q: "Comment changer le thème d'une présentation dans Google Slides ?", opts: ["Diapositive > Thème", "Fichier > Thème", "Édition > Thème", "Insertion > Thème"], ans: 0 },
+                    { q: "Comment insérer une image dans Google Slides ?", opts: ["Insertion > Image", "Fichier > Importer", "Édition > Coller", "Diapositive > Image"], ans: 0 },
+                    { q: "Comment ajouter une animation à un élément dans Google Slides ?", opts: ["Diapositive > Animation", "Insertion > Animation", "Édition > Animation", "Affichage > Animation"], ans: 0 },
+                    { q: "Comment présenter en plein écran dans Google Slides ?", opts: ["Présenter > Démarrer la présentation", "Fichier > Présenter", "Affichage > Plein écran", "Diapositive > Présenter"], ans: 0 },
+                    { q: "Comment exporter une présentation Google Slides en PDF ?", opts: ["Fichier > Télécharger > PDF", "Fichier > Exporter > PDF", "Fichier > Imprimer > PDF", "Fichier > Partager > PDF"], ans: 0 },
+                    { q: "Comment ajouter une vidéo dans Google Slides ?", opts: ["Insertion > Vidéo", "Diapositive > Vidéo", "Fichier > Importer", "Édition > Vidéo"], ans: 0 },
+                    { q: "Comment utiliser le mode présentateur dans Google Slides ?", opts: ["Présenter > Mode présentateur", "Affichage > Mode présentateur", "Diapositive > Mode présentateur", "Fichier > Mode présentateur"], ans: 0 },
+                    { q: "Comment partager une présentation Google Slides avec des droits de lecture seule ?", opts: ["Partager > Lecteur", "Fichier > Partager > Lecteur", "Édition > Partager > Lecteur", "Diapositive > Partager > Lecteur"], ans: 1 }
+                ]
+            },
+            {
+                id: "google-keep",
+                name: "Google Keep",
+                description: "Organisez vos notes et listes avec Google Keep.",
+                image: "https://images.pexels.com/photos/4144223/pexels-photo-4144223.jpeg?auto=compress&cs=tinysrgb&w=1280",
+                questions: [
+                    { q: "Comment créer une nouvelle note dans Google Keep ?", opts: ["Cliquer sur 'Nouvelle note'", "Appuyer sur le bouton '+'", "Fichier > Nouvelle note", "Édition > Nouvelle note"], ans: 1 },
+                    { q: "Comment changer la couleur d'une note dans Google Keep ?", opts: ["Cliquer sur les trois points > Changer la couleur", "Fichier > Couleur", "Édition > Couleur", "Affichage > Couleur"], ans: 0 },
+                    { q: "Comment épingler une note dans Google Keep ?", opts: ["Cliquer sur l'épingle", "Fichier > Épingler", "Édition > Épingler", "Affichage > Épingler"], ans: 0 },
+                    { q: "Comment archiver une note dans Google Keep ?", opts: ["Cliquer sur l'archive", "Fichier > Archiver", "Édition > Archiver", "Affichage > Archiver"], ans: 0 },
+                    { q: "Comment créer une liste dans Google Keep ?", opts: ["Cliquer sur 'Nouvelle liste'", "Appuyer sur le bouton 'Liste'", "Fichier > Nouvelle liste", "Édition > Liste"], ans: 1 },
+                    { q: "Comment partager une note dans Google Keep ?", opts: ["Cliquer sur le bouton 'Partager'", "Fichier > Partager", "Édition > Partager", "Affichage > Partager"], ans: 0 },
+                    { q: "Comment ajouter une image à une note dans Google Keep ?", opts: ["Cliquer sur l'icône image", "Fichier > Ajouter une image", "Édition > Image", "Insertion > Image"], ans: 0 },
+                    { q: "Comment supprimer une note dans Google Keep ?", opts: ["Cliquer sur la corbeille", "Fichier > Supprimer", "Édition > Supprimer", "Affichage > Supprimer"], ans: 0 },
+                    { q: "Comment rechercher une note dans Google Keep ?", opts: ["Utiliser la barre de recherche", "Fichier > Rechercher", "Édition > Rechercher", "Affichage > Rechercher"], ans: 0 },
+                    { q: "Comment restaurer une note archivée dans Google Keep ?", opts: ["Aller dans l'archive et cliquer sur la note", "Fichier > Restaurer", "Édition > Restaurer", "Affichage > Restaurer"], ans: 0 }
+                ]
+            }
+        ];
+
+        // ========== STATE ==========
+        let currentCategory = null;
+        let currentQuestion = 0;
+        let score = 0;
+        let locked = false;
+        let streak = 0;
+        let maxStreak = 0;
+        let timer = null;
+        let timeLeft = 15;
+        const results = [];
+
+        // ========== INIT ==========
+        function init() {
+            renderCategories();
+            lucide.createIcons();
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('categories');
+            container.innerHTML = '';
+            categories.forEach(category => {
+                const card = document.createElement('div');
+                card.className = 'category-card bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 shadow-lg text-center';
+                card.onclick = () => showPresentation(category);
+                card.innerHTML = `
+                    <img src="${category.image}" alt="${category.name}" class="w-full h-32 object-cover rounded-xl mb-4">
+                    <h3 class="heading-font text-xl font-bold text-white mb-2">${category.name}</h3>
+                    <p class="text-white/70 text-sm">${category.description}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function showPresentation(category) {
+            currentCategory = category;
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('presentation-screen').classList.remove('hidden');
+            document.getElementById('presentation-title').textContent = category.name;
+            document.getElementById('presentation-description').textContent = category.description;
+            document.getElementById('presentation-image').src = category.image;
+        }
+
+        function startQuiz() {
+            document.getElementById('presentation-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            resetQuizState();
+            showQuestion();
+        }
+
+        function resetQuizState() {
+            currentQuestion = 0;
+            score = 0;
+            streak = 0;
+            maxStreak = 0;
+            results.length = 0;
+        }
+
+        function backToHome() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('presentation-screen').classList.add('hidden');
+            document.getElementById('home-screen').classList.remove('hidden');
+            resetQuizState();
+        }
+
+        // ========== QUIZ LOGIC ==========
+        function startTimer() {
+            timeLeft = 15;
+            updateTimerDisplay();
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    autoFail();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer-text').textContent = timeLeft;
+            const offset = ((15 - timeLeft) / 15) * 94.25;
+            document.getElementById('timer-circle').style.strokeDashoffset = offset;
+        }
+
+        function autoFail() {
+            if (locked) return;
+            locked = true;
+            streak = 0;
+            updateStreak();
+            results.push({ q: currentCategory.questions[currentQuestion].q, correct: false });
+            const btns = document.getElementById('options').children;
+            btns[currentCategory.questions[currentQuestion].ans].classList.add('correct');
+            Array.from(btns).forEach(b => b.classList.add('disabled'));
+            setTimeout(() => {
+                currentQuestion++;
+                currentQuestion < currentCategory.questions.length ? showQuestion() : showResult();
+            }, 1200);
+        }
+
+        function showQuestion() {
+            const area = document.getElementById('question-area');
+            area.classList.remove('fade-in');
+            void area.offsetWidth;
+            area.classList.add('fade-in');
+            const q = currentCategory.questions[currentQuestion];
+            document.getElementById('q-text').textContent = q.q;
+            document.getElementById('q-counter').textContent = `${currentQuestion + 1} / ${currentCategory.questions.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentQuestion + 1) / currentCategory.questions.length) * 100}%`;
+            const opts = document.getElementById('options');
+            opts.innerHTML = '';
+            q.opts.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option w-full text-left px-5 py-4 rounded-xl bg-white/10 text-white font-medium border border-white/15 cursor-pointer';
+                btn.textContent = opt;
+                btn.onclick = () => selectAnswer(i, btn);
+                opts.appendChild(btn);
+            });
+            locked = false;
+            clearInterval(timer);
+            startTimer();
+        }
+
+        function selectAnswer(i, btn) {
+            if (locked) return;
+            locked = true;
+            clearInterval(timer);
+            const correct = currentCategory.questions[currentQuestion].ans;
+            if (i === correct) {
+                btn.classList.add('correct');
+                score++;
+                streak++;
+                if (streak > maxStreak) maxStreak = streak;
+                results.push({ q: currentCategory.questions[currentQuestion].q, correct: true });
+            } else {
+                btn.classList.add('wrong');
+                document.getElementById('options').children[correct].classList.add('correct');
+                streak = 0;
+                results.push({ q: currentCategory.questions[currentQuestion].q, correct: false });
+            }
+            updateStreak();
+            Array.from(document.getElementById('options').children).forEach(b => b.classList.add('disabled'));
+            setTimeout(() => {
+                currentQuestion++;
+                currentQuestion < currentCategory.questions.length ? showQuestion() : showResult();
+            }, 1200);
+        }
+
+        function updateStreak() {
+            const el = document.getElementById('streak-display');
+            const cnt = document.getElementById('streak-count');
+            if (streak > 1) {
+                el.style.opacity = '1';
+                cnt.textContent = streak;
+                cnt.classList.remove('streak-pulse');
+                void cnt.offsetWidth;
+                cnt.classList.add('streak-pulse');
+            } else {
+                el.style.opacity = '0';
+            }
+        }
+
+        function showResult() {
+            clearInterval(timer);
+            document.getElementById('quiz-screen').classList.add('hidden');
+            const rs = document.getElementById('result-screen');
+            rs.classList.remove('hidden');
+            rs.classList.add('fade-in');
+            document.getElementById('result-score').textContent = `${score} / ${currentCategory.questions.length}`;
+            document.getElementById('result-streak').textContent = `🔥 Meilleure série : ${maxStreak} réponses`;
+            const emoji = score >= 8 ? '🏆' : score >= 5 ? '👏' : '💪';
+            document.getElementById('result-emoji').textContent = emoji;
+            const bd = document.getElementById('breakdown');
+            bd.innerHTML = '';
+            results.forEach((r, i) => {
+                const div = document.createElement('div');
+                div.className = 'breakdown-item flex items-start gap-2 text-sm py-1.5';
+                div.style.animationDelay = `${i * 0.05}s`;
+                div.innerHTML = `<span class="${r.correct ? 'text-emerald-400' : 'text-red-400'} font-bold">${r.correct ? '✓' : '✗'}</span><span class="text-white/80">${r.q}</span>`;
+                bd.appendChild(div);
+            });
+        }
+
+        function resetQuiz() {
+            resetQuizState();
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('fade-in');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQuestion();
+        }
+
+        // ========== START ==========
+        init();
+    </script>
+</body>
+</html>
